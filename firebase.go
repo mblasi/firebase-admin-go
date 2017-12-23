@@ -18,7 +18,12 @@
 package firebase
 
 import (
+	"errors"
+
+	"cloud.google.com/go/firestore"
+
 	"firebase.google.com/go/auth"
+	"firebase.google.com/go/iid"
 	"firebase.google.com/go/internal"
 	"firebase.google.com/go/storage"
 
@@ -31,13 +36,16 @@ import (
 )
 
 var firebaseScopes = []string{
+	"https://www.googleapis.com/auth/cloud-platform",
+	"https://www.googleapis.com/auth/datastore",
 	"https://www.googleapis.com/auth/devstorage.full_control",
 	"https://www.googleapis.com/auth/firebase",
+	"https://www.googleapis.com/auth/identitytoolkit",
 	"https://www.googleapis.com/auth/userinfo.email",
 }
 
 // Version of the Firebase Go Admin SDK.
-const Version = "2.0.0"
+const Version = "2.3.0"
 
 // An App holds configuration and state common to all Firebase services that are exposed from the SDK.
 type App struct {
@@ -59,6 +67,7 @@ func (a *App) Auth(ctx context.Context) (*auth.Client, error) {
 		Creds:     a.creds,
 		ProjectID: a.projectID,
 		Opts:      a.opts,
+		Version:   Version,
 	}
 	return auth.NewClient(ctx, conf)
 }
@@ -70,6 +79,24 @@ func (a *App) Storage(ctx context.Context) (*storage.Client, error) {
 		Bucket: a.storageBucket,
 	}
 	return storage.NewClient(ctx, conf)
+}
+
+// Firestore returns a new firestore.Client instance from the https://godoc.org/cloud.google.com/go/firestore
+// package.
+func (a *App) Firestore(ctx context.Context) (*firestore.Client, error) {
+	if a.projectID == "" {
+		return nil, errors.New("project id is required to access Firestore")
+	}
+	return firestore.NewClient(ctx, a.projectID, a.opts...)
+}
+
+// InstanceID returns an instance of iid.Client.
+func (a *App) InstanceID(ctx context.Context) (*iid.Client, error) {
+	conf := &internal.InstanceIDConfig{
+		ProjectID: a.projectID,
+		Opts:      a.opts,
+	}
+	return iid.NewClient(ctx, conf)
 }
 
 // NewApp creates a new App from the provided config and client options.
